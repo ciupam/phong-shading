@@ -4,6 +4,9 @@ export default class Sphere {
   #imageData;
   #radius;
 
+  #lightSource = [0, 40, 500];
+  #observer = [0, 0, 500];
+
   constructor(canvasQuery, radius) {
     this.#canvas = document.querySelector(canvasQuery);
     this.#ctx = this.#canvas.getContext("2d");
@@ -30,19 +33,29 @@ export default class Sphere {
   }
 
   insideCircle(x) {
-    const i = Math.floor(x / this.#imageData.width);
-    const j = x % this.#imageData.width;
-    const ci = this.#radius;
-    const cj = this.#radius;
-    const len = Math.sqrt(Math.pow(i - ci, 2) + Math.pow(j - cj, 2));
-    return len <= this.#radius;
+    const [i, j] = this.indexToCircleCords(x);
+
+    return Math.sqrt(Math.pow(i, 2) + Math.pow(j, 2)) <= this.#radius;
   }
 
   draw() {
     for (let i = 0; i < this.#imageData.data.length; i += 4) {
       // Modify pixel data
       if (this.insideCircle(i / 4)) {
-        this.#imageData.data[i + 0] = 190; // R value
+        const [x, y] = this.indexToCircleCords(i / 4);
+        const z = this.circleCordsToZ(x, y);
+        const N = [-x, -y, -z];
+        const L = [
+          this.#lightSource[0] - x,
+          this.#lightSource[1] - y,
+          this.#lightSource[2] - z,
+        ];
+        const V = [];
+        const cosb =
+          -this.scalarMultiply(L, N) /
+          (this.vectorLength(N) * this.vectorLength(L));
+
+        this.#imageData.data[i + 0] = this.indexToZ(i / 4) / 1.25; // R value
         this.#imageData.data[i + 1] = 0; // G value
         this.#imageData.data[i + 2] = 210; // B value
         this.#imageData.data[i + 3] = 255; // A value
@@ -51,5 +64,33 @@ export default class Sphere {
 
     // Draw image data to the canvas
     this.#ctx.putImageData(this.#imageData, ...this.imageDataCentre());
+  }
+
+  indexToCircleCords(x) {
+    return [
+      Math.floor(x / this.#imageData.width) - this.#radius,
+      (x % this.#imageData.width) - this.#radius,
+    ];
+  }
+
+  indexToZ(x) {
+    const [i, j] = this.indexToCircleCords(x);
+    const len = Math.sqrt(Math.pow(i, 2) + Math.pow(j, 2));
+    return Math.sqrt(Math.pow(this.#radius, 2) - Math.pow(len, 2));
+  }
+
+  circleCordsToZ(i, j) {
+    const len = Math.sqrt(Math.pow(i, 2) + Math.pow(j, 2));
+    return Math.sqrt(Math.pow(this.#radius, 2) - Math.pow(len, 2));
+  }
+
+  scalarMultiply(a, b) {
+    let sum = 0;
+    for (let i = 0; i < a.length; i++) sum += a[i] * b[i];
+    return sum;
+  }
+
+  vectorLength([x, y, z]) {
+    return Math.sqrt(x * x + y * y + z * z);
   }
 }
